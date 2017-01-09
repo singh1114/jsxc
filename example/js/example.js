@@ -3,8 +3,8 @@
 $(function() {
    var settings = {
       xmpp: {
-         url: '/http-bind/',
-         domain: 'localhost',
+         url: 'http://lab.gdy.club:5280/http-bind/',
+         domain: 'lab.gdy.club',
          resource: 'example',
          overwrite: true
       }
@@ -17,6 +17,9 @@ $(function() {
          form: '#form',
          jid: '#username',
          pass: '#password'
+      },
+      makejid: function() {
+	 jid = jid + '@lab.gdy.club';
       },
       logoutElement: $('#logout'),
       rosterAppend: 'body',
