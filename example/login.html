@@ -22,13 +22,18 @@
 
    <script src="js/example.js"></script>
 
+   <link rel="stylesheet" type="text/css" href="css/sunehaG.css">
+
 </head>
 
 <body>
-   <div class="container">
-      <h1 class="page-header">Restricted Area <small>simulated</small></h1>
-
-      <p>This page simulates your protected area or your login target.</p>
+   <nav class="navbar navbar-inverse">
+      <div class="'navbar-header">
+         <a href="#" class="navbar-brand"><strong>sunehaG</strong></a>
+      </div>
+   </nav>
+   <div class="container-fluid">
+      <h1 class="page-header"><strong>Welcome to sunehaG</strong> </h1>
 
       <div class="alert alert-info col-xs-6">
          <p>Checking status...</p>
@@ -38,10 +43,9 @@
          <p>You are not logged in! Maybe your password was wrong. <a href="index.html">Back</a></p>
       </div>
 
-      <div class="alert alert-success col-xs-6" style="display: none;">
-         <p>The following link has the <code>id</code> which was passed to jsxc as <code>logoutElement</code>:</p>
+      <div class="alert alert-success col-xs-2" style="display: none;" id="logout">
 
-         <p><a href="index.html" id="logout" class="btn btn-default">Log out</a> and redirect to <code>index.html</code></p>
+         <p><a href="index.html" id="logout" class="btn btn-primary">Log out</a></p>
       </div>
    </div>
 
