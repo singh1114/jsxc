@@ -1,5 +1,5 @@
 #login-form {
-   padding-top:40px;
+   padding-top:30px;
 }
 
 .logout {
@@ -19,7 +19,7 @@
    margin-bottom: 20px;
 }
 #content .col-md-4 .form {
-   min-height: 180px;
+   min-height: 170px;
 }
 
 #content .row:first-child {
@@ -60,4 +60,8 @@
 
 .container .login-form{
    border: 1px solid #CCC;
+}
+
+label {
+   padding-top: 7px;
 }
