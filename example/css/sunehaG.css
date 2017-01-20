@@ -12,6 +12,13 @@ body #login-form{
 	border-radius: 10px;
 	text-align: center;
 }
+#login-form img{
+	width: 150px;
+	height: auto;
+}
+.container h3 strong{
+	padding-bottom: 25px;
+}
 #logout{
 	display: block;	
 }
