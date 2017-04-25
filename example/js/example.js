@@ -3,8 +3,8 @@
 $(function() {
    var settings = {
       xmpp: {
-         url: 'http://guru.gndec.ac.in:5280/http-bind/',
-         domain: 'guru.gndec.ac.in',
+         url: 'http://lab.gdy.club:5280/http-bind/',
+         domain: 'lab.gdy.club',
          resource: 'example',
          overwrite: true
       }
@@ -19,7 +19,7 @@ $(function() {
          pass: '#password'
       },
       makejid: function() {
-	 jid = jid + '@guru.gndec.ac.in';
+	 jid = jid + '@lab.gdy.club';
       },
       logoutElement: $('#logout'),
       rosterAppend: 'body',
