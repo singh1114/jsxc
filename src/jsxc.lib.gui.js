@@ -57,7 +57,21 @@ jsxc.gui = {
    queryActions: {
       /** xmpp:JID?message[;body=TEXT] */
       message: function(jid, params) {
-         var win = jsxc.gui.window.open(jsxc.jidToBid(jid));
+         var bid = jsxc.jidToBid(jid);
+
+         if (!jsxc.storage.getUserItem('buddy', bid)) {
+            // init contact
+            jsxc.storage.saveBuddy(bid, {
+               jid: jid,
+               name: bid,
+               status: 0,
+               sub: 'none',
+               res: [],
+               rnd: Math.random()
+            });
+         }
+
+         var win = jsxc.gui.window.open(bid);
 
          if (params && typeof params.body === 'string') {
             win.find('.jsxc_textinput').val(params.body);
@@ -238,92 +252,9 @@ jsxc.gui = {
 
       ri.find('.jsxc_name').attr('title', info);
 
-      jsxc.gui.updateAvatar(ri.add(we.find('.jsxc_bar')), data.jid, data.avatar);
+      jsxc.gui.avatar.update(ri.add(we.find('.jsxc_bar')), data.jid, data.avatar);
 
       $(document).trigger('update.gui.jsxc', [bid]);
-   },
-
-   /**
-    * Update avatar on all given elements.
-    *
-    * @memberOf jsxc.gui
-    * @param {jQuery} el Elements with subelement .jsxc_avatar
-    * @param {string} jid Jid
-    * @param {string} aid Avatar id (sha1 hash of image)
-    */
-   updateAvatar: function(el, jid, aid) {
-
-      var setAvatar = function(src) {
-         if (src === 0 || src === '0') {
-            if (typeof jsxc.options.defaultAvatar === 'function') {
-               jsxc.options.defaultAvatar.call(el, jid);
-               return;
-            }
-            jsxc.gui.avatarPlaceholder(el.find('.jsxc_avatar'), jid);
-            return;
-         }
-
-         el.find('.jsxc_avatar').removeAttr('style');
-
-         el.find('.jsxc_avatar').css({
-            'background-image': 'url(' + src + ')',
-            'text-indent': '999px'
-         });
-      };
-
-      if (typeof aid === 'undefined') {
-         setAvatar(0);
-         return;
-      }
-
-      var avatarSrc = jsxc.storage.getUserItem('avatar', aid);
-
-      if (!jsxc.master && !avatarSrc) {
-         // force avatar placeholder for slave tab, until master tab requested vCard
-         avatarSrc = 0;
-      }
-
-      if (avatarSrc !== null) {
-         setAvatar(avatarSrc);
-      } else {
-         var handler_cb = function(stanza) {
-            jsxc.debug('vCard', stanza);
-
-            var vCard = $(stanza).find("vCard > PHOTO");
-            var src;
-
-            if (vCard.length === 0) {
-               jsxc.debug('No photo provided');
-               src = '0';
-            } else if (vCard.find('EXTVAL').length > 0) {
-               src = vCard.find('EXTVAL').text();
-            } else {
-               var img = vCard.find('BINVAL').text();
-               var type = vCard.find('TYPE').text();
-               src = 'data:' + type + ';base64,' + img;
-            }
-
-            // concat chunks
-            src = src.replace(/[\t\r\n\f]/gi, '');
-
-            jsxc.storage.setUserItem('avatar', aid, src);
-            setAvatar(src);
-         };
-
-         var error_cb = function(msg) {
-            jsxc.warn('Could not load vcard.', msg);
-
-            jsxc.storage.setUserItem('avatar', aid, 0);
-            setAvatar(0);
-         };
-
-         // workaround for https://github.com/strophe/strophejs/issues/172
-         if (Strophe.getBareJidFromJid(jid) === Strophe.getBareJidFromJid(jsxc.xmpp.conn.jid)) {
-            jsxc.xmpp.conn.vcard.get(handler_cb, error_cb);
-         } else {
-            jsxc.xmpp.conn.vcard.get(handler_cb, Strophe.getBareJidFromJid(jid), error_cb);
-         }
-      }
    },
 
    /**
@@ -1264,9 +1195,11 @@ jsxc.gui = {
 
          el.attr('data-status', pres);
 
-         if (el.find('.jsxc_avatar').length > 0) {
-            el = el.find('.jsxc_avatar');
+         if (!el.hasClass('jsxc_statusIndicator')) {
+            el = el.find('.jsxc_statusIndicator');
          }
+
+         el.attr('data-status', pres);
 
          el.removeClass('jsxc_' + jsxc.CONST.STATUS.join(' jsxc_')).addClass('jsxc_' + pres);
       });
@@ -1369,6 +1302,9 @@ jsxc.gui = {
          var jid = href.split('?')[0];
          var action, params = {};
 
+         element.attr('data-bid', jsxc.jidToBid(jid));
+         jsxc.gui.update(jsxc.jidToBid(jid));
+
          if (href.indexOf('?') < 0) {
             action = 'message';
          } else {
@@ -1390,7 +1326,11 @@ jsxc.gui = {
             element.off('click').click(function(ev) {
                ev.stopPropagation();
 
-               jsxc.gui.queryActions[action].call(jsxc, jid, params);
+               if (jsxc.xmpp.conn && jsxc.xmpp.conn.connected) {
+                  jsxc.gui.queryActions[action].call(jsxc, jid, params);
+               } else {
+                  jsxc.gui.showNotification($.t('no_connection'), $.t('You_have_to_go_online_'));
+               }
 
                return false;
             });
@@ -1628,7 +1568,8 @@ jsxc.gui.roster = {
       jsxc.notice.load();
 
       jsxc.gui.roster.ready = true;
-      $(document).trigger('ready.roster.jsxc');
+      $(document).trigger('ready.roster.jsxc', [rosterState]);
+      $(document).trigger('ready-roster-jsxc', [rosterState]);
    },
 
    /**
@@ -1703,7 +1644,7 @@ jsxc.gui.roster = {
       while (history.length > i) {
          var message = new jsxc.Message(history[i]);
          if (message.direction !== jsxc.Message.SYS) {
-            $('[data-bid="' + bid + '"]').find('.jsxc_lastmsg .jsxc_text').html(message.msg);
+            jsxc.gui.window.setLastMsg(bid, message.msg);
             break;
          }
          i++;
@@ -2113,6 +2054,10 @@ jsxc.gui.window = {
 
       win.find('.jsxc_sendFile').click(function() {
          $('body').click();
+
+         if ($(this).hasClass('jsxc_disabled')) {
+            return;
+         }
 
          jsxc.gui.window.sendFile(bid);
       });
@@ -2756,6 +2701,7 @@ jsxc.gui.window = {
       }
 
       msgDiv.attr('title', message.error);
+      msgDiv.attr('data-error-msg', message.error);
 
       if (message.attachment && message.attachment.name) {
          var attachment = $('<div>');
@@ -2797,11 +2743,15 @@ jsxc.gui.window = {
       }
 
       if (direction !== 'sys') {
-         $('[data-bid="' + bid + '"]').find('.jsxc_lastmsg .jsxc_text').html(msg);
+         jsxc.gui.window.setLastMsg(bid, msg);
       }
 
-      if (jsxc.Message.getDOM(uid).length > 0) {
-         jsxc.Message.getDOM(uid).replaceWith(msgDiv);
+      var currentMessageElement = jsxc.Message.getDOM(uid);
+      if (currentMessageElement.length > 0) {
+         if (currentMessageElement.attr('data-queryId')) {
+            msgDiv.attr('data-queryId', currentMessageElement.attr('data-queryId'));
+         }
+         currentMessageElement.replaceWith(msgDiv);
       } else {
          win.find('.jsxc_textarea').append(msgDiv);
       }
@@ -2815,7 +2765,7 @@ jsxc.gui.window = {
             msgDiv.attr('data-bid', jsxc.jidToBid(message.sender.jid));
 
             var data = jsxc.storage.getUserItem('buddy', jsxc.jidToBid(message.sender.jid)) || {};
-            jsxc.gui.updateAvatar(msgDiv, jsxc.jidToBid(message.sender.jid), data.avatar);
+            jsxc.gui.avatar.update(msgDiv, jsxc.jidToBid(message.sender.jid), data.avatar);
 
             title = jsxc.jidToBid(message.sender.jid);
          }
@@ -2846,7 +2796,9 @@ jsxc.gui.window = {
       jsxc.gui.detectUriScheme(win);
       jsxc.gui.detectEmail(win);
 
-      jsxc.gui.window.scrollDown(bid);
+      if (!message.forwarded) {
+         jsxc.gui.window.scrollDown(bid);
+      }
    },
 
    /**
@@ -2858,6 +2810,15 @@ jsxc.gui.window = {
     */
    setText: function(bid, text) {
       jsxc.gui.window.get(bid).find('.jsxc_textinput').val(text);
+   },
+
+   setLastMsg: function(bid, msg) {
+      var lastMsgTextElement = $('[data-bid="' + bid + '"]').find('.jsxc_lastmsg .jsxc_text');
+
+      lastMsgTextElement.html(msg);
+      lastMsgTextElement.find('a').each(function() {
+         $(this).replaceWith('<span>' + $(this).text() + '</span>');
+      });
    },
 
    /**
@@ -2914,10 +2875,16 @@ jsxc.gui.window = {
 
       jsxc.storage.setUserItem('history', bid, []);
 
+      var buddyData = jsxc.storage.getUserItem('buddy', bid) || {};
+      delete buddyData.lastArchiveUid;
+      delete buddyData.archiveExhausted;
+      jsxc.storage.setUserItem('buddy', bid, buddyData);
+
       var win = jsxc.gui.window.get(bid);
 
       if (win.length > 0) {
          win.find('.jsxc_textarea').empty();
+         win.find('.jsxc_textarea').scroll();
       }
    },
 

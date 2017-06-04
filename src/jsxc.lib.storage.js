@@ -13,6 +13,22 @@ jsxc.storage = {
 
    SEP: ':',
 
+   hasSupport: function() {
+      if (typeof localStorage === 'undefined' || localStorage === null) {
+         return false;
+      }
+
+      try {
+         localStorage.setItem('jsxc:storage:test', 'jsxc');
+         localStorage.removeItem('jsxc:storage:test');
+      } catch (err) {
+         jsxc.warn('Can not save any data. Probably your quota exceeded or you use Safari in private Mode:', (err) ? err.message : undefined);
+         return false;
+      }
+
+      return true;
+   },
+
    /**
     * @param {type} uk Should we generate a user prefix?
     * @returns {String} prefix
@@ -62,7 +78,11 @@ jsxc.storage = {
          });
       }
 
-      localStorage.setItem(jsxc.storage.getPrefix(uk) + key, value);
+      try {
+         localStorage.setItem(jsxc.storage.getPrefix(uk) + key, value);
+      } catch (err) {
+         jsxc.error('An error occured while saving data.', (err) ? err.message : undefined);
+      }
    },
 
    setUserItem: function(type, key, value) {
@@ -394,6 +414,11 @@ jsxc.storage = {
          var history = JSON.parse(e.newValue);
          var uid, el, message;
 
+         if (!jsxc.master) {
+            var win = jsxc.gui.window.get(bid);
+            win.find('.jsxc_textarea').empty();
+         }
+
          while (history.length > 0) {
             uid = history.pop();
 
@@ -402,7 +427,7 @@ jsxc.storage = {
 
             if (el.length === 0) {
                if (jsxc.master && message.direction === jsxc.Message.OUT) {
-                  jsxc.xmpp.sendMessage(message.bid, message.msg, message._uid);
+                  jsxc.xmpp.sendMessage(message);
                }
 
                jsxc.gui.window._postMessage(message, true);

@@ -63,11 +63,7 @@ jsxc.xmpp.httpUpload.init = function(o) {
       return;
    }
 
-   if (caps.hasFeatureByJid(domain, self.CONST.NS.HTTPUPLOAD)) {
-      self.discoverUploadService();
-   } else {
-      jsxc.debug(domain + ' does not support http upload');
-   }
+   self.discoverUploadService();
 };
 
 /**
@@ -77,12 +73,15 @@ jsxc.xmpp.httpUpload.init = function(o) {
  */
 jsxc.xmpp.httpUpload.discoverUploadService = function() {
    var self = jsxc.xmpp.httpUpload;
+   var domain = self.conn.domain;
 
    jsxc.debug('discover http upload service');
 
-   self.queryItemForUploadService(self.conn.domain);
+   if (jsxc.xmpp.conn.caps.hasFeatureByJid(domain, self.CONST.NS.HTTPUPLOAD)) {
+      self.queryItemForUploadService(domain);
+   }
 
-   self.conn.disco.items(self.conn.domain, null, function(items) {
+   self.conn.disco.items(domain, null, function(items) {
       $(items).find('item').each(function() {
          var jid = $(this).attr('jid');
 
@@ -118,7 +117,7 @@ jsxc.xmpp.httpUpload.queryItemForUploadService = function(jid, cb) {
          jsxc.options.set('httpUpload', {
             server: jid,
             name: $(info).find('identity').attr('name'),
-            maxSize: parseInt(httpUploadMaxSize.text())
+            maxSize: parseInt(httpUploadMaxSize.text()) || -1
          });
 
          self.ready = true;
@@ -163,22 +162,27 @@ jsxc.xmpp.httpUpload.sendFile = function(file, message) {
 
          message.delete();
       } else if (data.get && data.put) {
-         // slot received, start upload
+         jsxc.debug('slot received, start upload to ' + data.put);
+
          self.uploadFile(data.put, file, message, function() {
+            var attachment = message.attachment;
+            var metaString = attachment.type + '|' + attachment.size + '|' + attachment.name;
             var a = $('<a>');
             a.attr('href', data.get);
-            a.attr('data-name', message.attachment.name);
-            a.attr('data-type', message.attachment.type);
-            a.attr('data-size', message.attachment.size);
 
-            if (message.attachment.thumbnail) {
-               a.attr('data-thumbnail', message.attachment.thumbnail);
+            attachment.data = data.get;
+
+            if (attachment.thumbnail) {
+               var img = $('<img>');
+               img.attr('alt', 'Preview:' + metaString);
+               img.attr('src', attachment.thumbnail);
+               a.prepend(img);
+            } else {
+               a.text(metaString);
             }
 
-            a.text(data.get);
-            message.attachment.data = data.get;
-
-            message.msg = $('<span>').append(a).html();
+            message.msg = data.get;
+            message.htmlMsg = $('<span>').append(a).html();
             message.type = jsxc.Message.HTML;
             jsxc.gui.window.postMessage(message);
          });
@@ -323,8 +327,8 @@ jsxc.xmpp.httpUpload.failedRequestSlotCB = function(stanza, cb) {
    });
 };
 
-$(document).on('stateChange.jsxc', function(ev, state) {
-   if (state === jsxc.CONST.STATE.READY) {
+$(document).on('stateUIChange.jsxc', function(ev, state) {
+   if (state === jsxc.CONST.UISTATE.INITIATING) {
       jsxc.xmpp.httpUpload.init();
    }
 });

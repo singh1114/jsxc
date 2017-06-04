@@ -28,9 +28,6 @@ jsxc = {
    /** Interval for keep-alive */
    keepaliveInterval: null,
 
-   /** True if jid, sid and rid was used to connect */
-   reconnect: false,
-
    /** True if restore is complete */
    restoreCompleted: false,
 
@@ -81,7 +78,8 @@ jsxc = {
       },
       NS: {
          CARBONS: 'urn:xmpp:carbons:2',
-         FORWARD: 'urn:xmpp:forward:0'
+         FORWARD: 'urn:xmpp:forward:0',
+         HINTS: 'urn:xmpp:hints'
       },
       HIDDEN: 'hidden',
       SHOWN: 'shown',
@@ -222,8 +220,8 @@ jsxc = {
       }
 
       // Check localStorage
-      if (typeof(localStorage) === 'undefined') {
-         jsxc.warn("Browser doesn't support localStorage.");
+      if (!jsxc.storage.hasSupport()) {
+         jsxc.error("Browser doesn't support localStorage. JSXC will be disabled.");
          return;
       }
 
@@ -275,6 +273,7 @@ jsxc = {
          lng: lang,
          fallbackLng: 'en',
          resources: I18next,
+         returnNull: false,
          debug: jsxc.storage.getItem('debug') === true,
          interpolation: {
             prefix: '__',
@@ -531,6 +530,10 @@ jsxc = {
          username = settings.xmpp.username;
       }
 
+      if (typeof settings.xmpp.password === 'string') {
+         password = settings.xmpp.password;
+      }
+
       var resource = (settings.xmpp.resource) ? '/' + settings.xmpp.resource : '';
       var domain = settings.xmpp.domain;
       var jid;
@@ -584,7 +587,7 @@ jsxc = {
       $('#jsxc_roster').removeClass('jsxc_noConnection');
 
       jsxc.registerLogout();
-      jsxc.gui.updateAvatar($('#jsxc_roster > .jsxc_bottom'), jsxc.jidToBid(jsxc.storage.getItem('jid')), 'own');
+      jsxc.gui.avatar.update($('#jsxc_roster > .jsxc_bottom'), jsxc.jidToBid(jsxc.storage.getItem('jid')), 'own');
 
       jsxc.gui.restore();
    },
@@ -652,7 +655,7 @@ jsxc = {
          jsxc.otr.createDSA();
       }
 
-      jsxc.gui.updateAvatar($('#jsxc_roster > .jsxc_bottom'), jsxc.jidToBid(jsxc.storage.getItem('jid')), 'own');
+      jsxc.gui.avatar.update($('#jsxc_roster > .jsxc_bottom'), jsxc.jidToBid(jsxc.storage.getItem('jid')), 'own');
    },
 
    /**

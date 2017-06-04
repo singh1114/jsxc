@@ -67,8 +67,6 @@ jsxc.xmpp.chatState.onComposing = function(ev, jid) {
       return;
    }
 
-   clearTimeout(win.data('composing-timeout'));
-
    // add user in array if necessary
    var usersComposing = win.data('composing') || [];
    if (usersComposing.indexOf(user) === -1) {
@@ -76,25 +74,8 @@ jsxc.xmpp.chatState.onComposing = function(ev, jid) {
       win.data('composing', usersComposing);
    }
 
-   var textarea = win.find('.jsxc_textarea');
-   var composingNotif = textarea.find('.jsxc_composing');
-
-   if (composingNotif.length < 1) {
-      // notification not present, add it
-      composingNotif = $('<div>').addClass('jsxc_composing')
-         .addClass('jsxc_chatmessage')
-         .addClass('jsxc_sys')
-         .appendTo(textarea);
-   }
-
-   var msg = self._genComposingMsg(usersComposing);
-   composingNotif.text(msg);
-
-   // scroll to bottom
-   jsxc.gui.window.scrollDown(bid);
-
-   // show message
-   composingNotif.addClass('jsxc_fadein');
+   var msg = self._genComposingMsg(data.type, usersComposing);
+   jsxc.xmpp.chatState.setStatus(win, msg);
 };
 
 /**
@@ -120,7 +101,6 @@ jsxc.xmpp.chatState.onPaused = function(ev, jid) {
       return;
    }
 
-   var el = win.find('.jsxc_composing');
    var usersComposing = win.data('composing') || [];
 
    if (usersComposing.indexOf(user) >= 0) {
@@ -129,25 +109,12 @@ jsxc.xmpp.chatState.onPaused = function(ev, jid) {
       win.data('composing', usersComposing);
    }
 
-   if (usersComposing.length === 0) {
-      var durationValue = el.css('transition-duration') || '0s';
-      var duration = parseFloat(durationValue) || 0;
-
-      if (durationValue.match(/[^m]s$/)) {
-         duration *= 1000;
-      }
-
-      el.removeClass('jsxc_fadein');
-
-      var to = setTimeout(function() {
-         el.remove();
-      }, duration);
-
-      win.data('composing-timeout', to);
-   } else {
-      // update message
-      el.text(self._genComposingMsg(usersComposing));
+   var composingMsg;
+   if (usersComposing.length !== 0) {
+      composingMsg = self._genComposingMsg(data.type, usersComposing);
    }
+
+   jsxc.xmpp.chatState.setStatus(win, composingMsg);
 };
 
 /**
@@ -226,16 +193,35 @@ jsxc.xmpp.chatState.endComposing = function(bid) {
  * Generate composing message.
  *
  * @memberOf jsxc.xmpp.chatState
+ * @param  {String} the type of the chat ('groupchat' or 'chat')
  * @param  {Array} usersComposing List of users which are currently composing a message
  */
-jsxc.xmpp.chatState._genComposingMsg = function(usersComposing) {
+jsxc.xmpp.chatState._genComposingMsg = function(chatType, usersComposing) {
    if (!usersComposing || usersComposing.length === 0) {
       jsxc.debug('usersComposing array is empty?');
 
       return '';
    } else {
-      return usersComposing.length > 1 ? usersComposing.join(', ') + $.t('_are_composing') :
-         usersComposing[0] + $.t('_is_composing');
+      if (chatType === 'groupchat') {
+         return usersComposing.length > 1 ? usersComposing.join(', ') + $.t('_are_composing') :
+            usersComposing[0] + $.t('_is_composing');
+      }
+      return $.t('_is_composing');
+   }
+};
+
+jsxc.xmpp.chatState.setStatus = function(win, msg) {
+   var statusMsgElement = win.find('.jsxc_status-msg');
+
+   statusMsgElement.text(msg || '');
+   statusMsgElement.attr('title', msg || '');
+
+   if (msg) {
+      statusMsgElement.addClass('jsxc_composing');
+      win.addClass('jsxc_status-msg-show');
+   } else {
+      statusMsgElement.removeClass('jsxc_composing');
+      win.removeClass('jsxc_status-msg-show');
    }
 };
 

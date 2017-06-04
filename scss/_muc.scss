@@ -11,7 +11,7 @@
             padding-top: 44px;
         }
 
-        .jsxc_fingerprints, .jsxc_verification, .jsxc_transfer, .jsxc_video, .jsxc_sendFile {
+        .jsxc_fingerprints, .jsxc_verification, .jsxc_transfer, .jsxc_video {
             display: none;
         }
 
@@ -113,6 +113,12 @@
                         margin-right: 4px;
                     }
                 }
+            }
+        }
+
+        .jsxc_avatar {
+            :before {
+                display: none;
             }
         }
     }
