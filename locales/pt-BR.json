@@ -240,6 +240,8 @@
     "message_not_send_item-not-found": "Sua mensagem não foi enviada por que essa sala nao existe mais",
     "message_not_send_forbidden": "Sua mensagem não foi enviada por que não  tem 'voz' para essa sala",
     "message_not_send_not-acceptable": "Sua mensagem não foi enviada por que você nao é ocupante desta sala",
+    "message_not_send_resource-unavailable": null,
+    "message_not_send_remote-server-not-found": null,
     "This_room_has_been_closed": "Essa sala foi fechada",
     "Room_logging_is_enabled": "O Logging esta habilitado",
     "A_password_is_required": "Senha é obrigatória",
@@ -301,6 +303,12 @@
     "Stream_terminated": null,
     "Close_all": null,
     "Notification": null,
-    "Unreadable_OTR_message": null
+    "Unreadable_OTR_message": null,
+    "Load_older_messages": null,
+    "Message_history": null,
+    "setting-mam-enable": null,
+    "File_too_large": null,
+    "No_proper_file_transfer_method_available": null,
+    "You_have_to_go_online_": null
   }
 }

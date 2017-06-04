@@ -6,6 +6,62 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## 3.2.1 - 2017-06-01
+### Added
+- add Greek translation
+
+### Fixed
+- fix thumbnail transfer
+- fix handler for muc menu items
+- catch undefined exception during file transfer
+- fix disabled file transfer link
+- [#542](https://github.com/jsxc/jsxc/issues/542) fix fallback language
+- remove favicon badge after logout
+
+### Changed
+- reduce thumbnail size
+- enable http upload for muc
+- disable links in last message view
+
+## 3.2.0 - 2017-05-17
+### Added
+- [#150](https://github.com/jsxc/jsxc/issues/150) add Message Archive Management (XEP-0313)
+- [#464](https://github.com/jsxc/jsxc/issues/464) respond to software version request (XEP-0092)
+
+### Fixed
+- [#447](https://github.com/jsxc/jsxc/pull/447) fix muc member presence
+- fix http upload discovery
+- fix vcard retrieval for rooms
+- fix bookmarks
+- [#470](https://github.com/jsxc/jsxc/issues/470) fix receiving message from unknown sender
+- [#483](https://github.com/jsxc/jsxc/issues/483) fix unclickable space
+- catch quota exceeded errors (e.g. Safari in private mode has a quota of 0)
+- [#510](https://github.com/jsxc/jsxc/pull/510) fix muc form
+- [#505](https://github.com/jsxc/jsxc/pull/505) fix i18n key
+- [#515](https://github.com/jsxc/jsxc/issues/515) fix add contact in slave tab
+- fix initial roster loading
+- fix xmpp message uri to unknown jid
+- fix uri scheme handling if offline
+- fix hiding of offline users in roster
+
+### Changed
+- update dependencies
+   - strophe.jinglejs
+   - grunt-contrib-clean
+   - grunt-contrib-uglify
+   - node-sass
+   - strophe.chatstates
+   - strophejs-plugin-mam
+- make max file size optional for http upload service
+- [#480](https://github.com/jsxc/jsxc/issues/480) split avatar loading into chunks
+- [#478](https://github.com/jsxc/jsxc/issues/478) support roster versioning
+- prefer xmpp password from settings over login form
+- [#468](https://github.com/jsxc/jsxc/issues/468) move composing message to window header
+- make message error more visible
+- ignore message errors without id
+- add data-bid to xmpp uris
+- add roster state to roster ready event
+
 ## 3.1.1 - 2017-02-14
 ### Fixed
 - fix path to dependencies

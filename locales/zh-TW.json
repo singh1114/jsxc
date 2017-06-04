@@ -1,6 +1,6 @@
 {
   "translation": {
-    "Logging_in": "正在登入…",
+    "Logging_in": "正在登入中…",
     "your_connection_is_unencrypted": "連線沒加密。",
     "your_connection_is_encrypted": "連線有加密。",
     "your_buddy_closed_the_private_connection": "聯絡人關閉了加密連線。",
@@ -81,8 +81,8 @@
     "xa": "離開很久",
     "offline": "離線",
     "none": "沒有",
-    "Unknown_instance_tag": null,
-    "Not_one_of_our_latest_keys": null,
+    "Unknown_instance_tag": "狀況標籤不明。",
+    "Not_one_of_our_latest_keys": "不是最近使用密鑰其中的一個。",
     "Received_an_unreadable_encrypted_message": "收到了一則加密但無法辨認的訊息。",
     "Online": "上線",
     "Chatty": "想聊天",
@@ -95,7 +95,7 @@
     "Remove": "刪掉",
     "Online_help": "線上說明",
     "FN": "全名",
-    "N": " ",
+    "N": "名字",
     "FAMILY": "姓氏",
     "GIVEN": "名字",
     "NICKNAME": "綽號",
@@ -110,7 +110,7 @@
     "TEL": "電話",
     "NUMBER": "編號",
     "EMAIL": "電子郵件",
-    "USERID": " ",
+    "USERID": "使用者代碼",
     "ORG": "團體",
     "ORGNAME": "名稱",
     "ORGUNIT": "單位",
@@ -240,6 +240,8 @@
     "message_not_send_item-not-found": "訊息沒送出去，因為聊天室不存在了",
     "message_not_send_forbidden": "訊息沒送出去，因為你被消音了",
     "message_not_send_not-acceptable": "訊息沒送出去，因為你不是聊天室的參與人了",
+    "message_not_send_resource-unavailable": "訊息沒送出去，因為通訊對象不在或是已經斷線",
+    "message_not_send_remote-server-not-found": "訊息沒送出去，因為伺服器間的連線失敗了",
     "This_room_has_been_closed": "聊天室已經關閉了",
     "Room_logging_is_enabled": "聊天室紀錄打開了",
     "A_password_is_required": "需要密碼",
@@ -300,7 +302,13 @@
     "Connection_accepted": "連線接受了",
     "Stream_terminated": "串流結束了",
     "Close_all": "全部關掉",
-    "Notification": null,
-    "Unreadable_OTR_message": null
+    "Notification": "通知",
+    "Unreadable_OTR_message": "忽略無法解讀的 OTR 訊息",
+    "Load_older_messages": "下載舊訊息",
+    "Message_history": "訊息紀錄",
+    "setting-mam-enable": "打開後就可以從伺服器取得儲存訊息",
+    "File_too_large": "檔案太大了",
+    "No_proper_file_transfer_method_available": "沒有適合的檔案傳輸方式",
+    "You_have_to_go_online_": "必須要上線才能執行這個動作。"
   }
 }

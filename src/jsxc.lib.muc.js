@@ -97,7 +97,6 @@ jsxc.muc = {
       $(document).on('error.presence.jsxc', jsxc.muc.onPresenceError);
 
       self.conn.addHandler(self.onGroupchatMessage, null, 'message', 'groupchat');
-      self.conn.addHandler(self.onErrorMessage, null, 'message', 'error');
       self.conn.muc.roomNames = jsxc.storage.getUserItem('roomNames') || [];
    },
 
@@ -755,6 +754,7 @@ jsxc.muc = {
       });
 
       var destroy = $('<a>');
+      destroy.attr('href', '#');
       destroy.text($.t('Destroy'));
       destroy.addClass('jsxc_destroy');
       destroy.hide();
@@ -765,6 +765,7 @@ jsxc.muc = {
       win.find('.jsxc_settings ul').append($('<li>').append(destroy));
 
       var configure = $('<a>');
+      configure.attr('href', '#');
       configure.text($.t('Configure'));
       configure.addClass('jsxc_configure');
       configure.hide();
@@ -793,6 +794,7 @@ jsxc.muc = {
       }
 
       var leave = $('<a>');
+      leave.attr('href', '#');
       leave.text($.t('Leave'));
       leave.addClass('jsxc_leave');
       leave.click(function() {
@@ -826,7 +828,6 @@ jsxc.muc = {
       var nickname = Strophe.unescapeNode(res);
       var own = jsxc.storage.getUserItem('ownNicknames') || {};
       var member = jsxc.storage.getUserItem('member', room) || {};
-      var openWindow = false;
       var codes = [];
 
       xdata.find('status').each(function() {
@@ -840,6 +841,9 @@ jsxc.muc = {
       if (roomdata.state === self.CONST.ROOMSTATE.INIT) {
          // successfully joined
 
+         roomdata.status = jsxc.CONST.STATUS.indexOf('online');
+         jsxc.storage.setUserItem('buddy', room, roomdata);
+
          jsxc.storage.setUserItem('roomNames', jsxc.xmpp.conn.muc.roomNames);
 
          if (jsxc.gui.roster.getItem(room).length === 0) {
@@ -852,8 +856,9 @@ jsxc.muc = {
 
          if ($('#jsxc_dialog').length > 0) {
             // User joined the room manually
-            openWindow = true;
             jsxc.gui.dialog.close();
+
+            jsxc.gui.window.open(room);
          }
       }
 
@@ -943,11 +948,6 @@ jsxc.muc = {
 
          $(document).trigger('status.muc.jsxc', [code, room, nickname, member[nickname] || {}, presence]);
       });
-
-      if (openWindow) {
-         // we wait until all parameters are set up correctly (e.g. state)
-         jsxc.gui.window.open(room);
-      }
 
       return true;
    },
@@ -1244,15 +1244,14 @@ jsxc.muc = {
 
          if (typeof jid === 'string') {
             m.find('.jsxc_name').text(jsxc.jidToBid(jid));
-            m.attr('data-bid', jsxc.jidToBid(jid));
             title = title + '\n' + jsxc.jidToBid(jid);
 
             var data = jsxc.storage.getUserItem('buddy', jsxc.jidToBid(jid));
 
             if (data !== null && typeof data === 'object') {
-               jsxc.gui.updateAvatar(m, jsxc.jidToBid(jid), data.avatar);
+               jsxc.gui.avatar.update(m, jsxc.jidToBid(jid), data.avatar);
             } else if (jsxc.jidToBid(jid) === ownBid) {
-               jsxc.gui.updateAvatar(m, jsxc.jidToBid(jid), 'own');
+               jsxc.gui.avatar.update(m, jsxc.jidToBid(jid), 'own');
             }
          } else {
             m.find('.jsxc_name').text(nickname);
@@ -1388,51 +1387,6 @@ jsxc.muc = {
             })
          });
       }
-
-      return true;
-   },
-
-   /**
-    * Handle group chat error message.
-    *
-    * @private
-    * @memberOf jsxc.muc
-    * @param {string} message Message stanza
-    */
-   onErrorMessage: function(message) {
-      var room = jsxc.jidToBid($(message).attr('from'));
-
-      if (jsxc.gui.window.get(room).length === 0) {
-         return true;
-      }
-
-      if ($(message).find('item-not-found').length > 0) {
-         jsxc.gui.window.postMessage({
-            bid: room,
-            direction: jsxc.Message.SYS,
-            msg: $.t('message_not_send_item-not-found')
-         });
-      } else if ($(message).find('forbidden').length > 0) {
-         jsxc.gui.window.postMessage({
-            bid: room,
-            direction: jsxc.Message.SYS,
-            msg: $.t('message_not_send_forbidden')
-         });
-      } else if ($(message).find('not-acceptable').length > 0) {
-         jsxc.gui.window.postMessage({
-            bid: room,
-            direction: jsxc.Message.SYS,
-            msg: $.t('message_not_send_not-acceptable')
-         });
-      } else {
-         jsxc.gui.window.postMessage({
-            bid: room,
-            direction: jsxc.Message.SYS,
-            msg: $.t('message_not_send')
-         });
-      }
-
-      jsxc.debug('[muc] error message for ' + room, $(message).find('error')[0]);
 
       return true;
    },
@@ -1576,7 +1530,7 @@ jsxc.muc = {
                   }
                   o = $(opt.toHTML());
 
-                  for (j = 0; j < self.values; j++) {
+                  for (j = 0; j < self.values.length; j++) {
                      k = self.values[j];
                      if (k.toString() === opt.value.toString()) {
                         o.attr('selected', 'selected');
@@ -1662,6 +1616,14 @@ jsxc.muc = {
 
          return html.get(0);
       }
+   },
+
+   isGroupchat: function(jid) {
+      var bid = jsxc.jidToBid(jid);
+
+      var userData = jsxc.storage.setUserItem('buddy', bid) || {};
+
+      return userData.type === 'groupchat';
    }
 };
 

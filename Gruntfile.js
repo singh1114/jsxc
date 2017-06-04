@@ -9,6 +9,7 @@ module.exports = function(grunt) {
 
    // Project configuration.
    grunt.initConfig({
+      github: grunt.file.readJSON('.github.json'),
       app: grunt.file.readJSON('package.json'),
       meta: {
          banner: grunt.file.read('banner.js')
@@ -170,7 +171,8 @@ module.exports = function(grunt) {
                banner: '/*! This file is concatenated for the browser. */\n\n'
             },
             src: ['src/jsxc.intro.js', 'src/jsxc.lib.js', 'src/jsxc.lib.xmpp.js',
-               'src/jsxc.lib.*.js', 'tmp/template.js', 'src/jsxc.outro.js'
+               'src/jsxc.lib.gui.js', 'src/jsxc.lib.*.js',
+               'tmp/template.js', 'src/jsxc.outro.js'
             ],
             dest: '<%= target %>/jsxc.js'
          }
@@ -347,6 +349,29 @@ module.exports = function(grunt) {
          options: {
             config: '.scss-lint.yml'
          }
+      },
+      github_releaser2: {
+         options: {
+            repository: 'jsxc/jsxc',
+            authentication: {
+               type: 'token',
+               token: '<%= github.token %>'
+            },
+            release: {
+               body: 'see https://github.com/jsxc/jsxc/blob/master/CHANGELOG.md'
+            }
+         },
+         release: {
+            src: ['archives/jsxc-archives/jsxc-<%= app.version %>.zip', 'archives/jsxc-archives/jsxc-<%= app.version %>.zip.sig']
+         },
+         prerelease: {
+            options: {
+               release: {
+                  prerelease: true
+               }
+            },
+            src: ['archives/jsxc-archives/jsxc-<%= app.version %>.zip', 'archives/jsxc-archives/jsxc-<%= app.version %>.zip.sig']
+         }
       }
    });
 
@@ -371,6 +396,7 @@ module.exports = function(grunt) {
    grunt.loadNpmTasks('grunt-prettysass');
    grunt.loadNpmTasks('grunt-html-convert');
    grunt.loadNpmTasks('grunt-scss-lint');
+   grunt.loadNpmTasks('grunt-github-releaser2');
 
    //Default task
    grunt.registerTask('default', ['build', 'watch']);
@@ -394,6 +420,9 @@ module.exports = function(grunt) {
 
       grunt.task.run(['search:changelog', 'build:prerelease', 'jsdoc']);
    });
+
+   grunt.registerTask('publish:release', ['github_releaser2:release']);
+   grunt.registerTask('publish:prerelease', ['github_releaser2:prerelease']);
 
    // before commit
    grunt.registerTask('pre-commit', ['search:console', 'jsbeautifier:pre-commit', 'scsslint', 'jshint']);

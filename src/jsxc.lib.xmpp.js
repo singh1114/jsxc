@@ -148,8 +148,6 @@ jsxc.xmpp = {
          jsxc.debug('Try to attach');
          jsxc.debug('SID: ' + sid);
 
-         jsxc.reconnect = true;
-
          jsxc.xmpp.conn.attach(jid, sid, rid, callback);
       } else {
          jsxc.debug('New connection');
@@ -157,6 +155,7 @@ jsxc.xmpp = {
          if (jsxc.xmpp.conn.caps) {
             // Add system handler, because user handler isn't called before
             // we are authenticated
+            // @REVIEW this could maybe retrieved from jsxc.xmpp.conn.features
             jsxc.xmpp.conn._addSysHandler(function(stanza) {
                var from = jsxc.xmpp.conn.domain,
                   c = stanza.querySelector('c'),
@@ -197,9 +196,12 @@ jsxc.xmpp = {
 
       // REVIEW: this should maybe moved to xmpp.disconnected
       // clean up
-      jsxc.storage.removeUserItem('buddylist');
       jsxc.storage.removeUserItem('windowlist');
       jsxc.storage.removeUserItem('unreadMsg');
+
+      if (jsxc.gui.favicon) {
+         jsxc.gui.favicon.badge(0);
+      }
 
       // Hide dropdown menu
       $('body').click();
@@ -257,6 +259,9 @@ jsxc.xmpp = {
 
       jsxc.xmpp.saveSessionParameter();
 
+      var rosterVerSupport = $(jsxc.xmpp.conn.features).find('[xmlns="urn:xmpp:features:rosterver"]').length > 0;
+      jsxc.storage.setUserItem('rosterVerSupport', rosterVerSupport);
+
       if (jsxc.options.loginForm.triggered) {
          switch (jsxc.options.loginForm.onConnected || 'submit') {
             case 'submit':
@@ -291,6 +296,7 @@ jsxc.xmpp = {
 
       jsxc.xmpp.conn.addHandler(jsxc.xmpp.onRosterChanged, 'jabber:iq:roster', 'iq', 'set');
       jsxc.xmpp.conn.addHandler(jsxc.xmpp.onChatMessage, null, 'message', 'chat');
+      jsxc.xmpp.conn.addHandler(jsxc.xmpp.onErrorMessage, null, 'message', 'error');
       jsxc.xmpp.conn.addHandler(jsxc.xmpp.onHeadlineMessage, null, 'message', 'headline');
       jsxc.xmpp.conn.addHandler(jsxc.xmpp.onReceived, null, 'message');
       jsxc.xmpp.conn.addHandler(jsxc.xmpp.onPresence, null, 'presence');
@@ -335,19 +341,28 @@ jsxc.xmpp = {
          }
       }
 
+      var rosterLoaded = jsxc.storage.getUserItem('rosterLoaded');
+
       // Only load roaster if necessary
-      if (!jsxc.reconnect || !jsxc.storage.getUserItem('buddylist')) {
+      if (rosterLoaded !== jsxc.xmpp.conn._proto.sid) {
          // in order to not overide existing presence information, we send
          // pres first after roster is ready
          $(document).one('cloaded.roster.jsxc', jsxc.xmpp.sendPres);
 
          $('#jsxc_roster > p:first').remove();
 
+         var queryAttr = {
+            xmlns: 'jabber:iq:roster'
+         };
+
+         if (jsxc.storage.getUserItem('rosterVerSupport')) {
+            // @TODO check if we really cached the roster
+            queryAttr.ver = jsxc.storage.getUserItem('rosterVer') || '';
+         }
+
          var iq = $iq({
             type: 'get'
-         }).c('query', {
-            xmlns: 'jabber:iq:roster'
-         });
+         }).c('query', queryAttr);
 
          jsxc.xmpp.conn.sendIQ(iq, jsxc.xmpp.onRoster);
       } else {
@@ -375,14 +390,12 @@ jsxc.xmpp = {
    },
 
    initNewConnection: function() {
-      // make shure roster will be reloaded
-      jsxc.storage.removeUserItem('buddylist');
-
       jsxc.storage.removeUserItem('windowlist');
       jsxc.storage.removeUserItem('own');
       jsxc.storage.removeUserItem('avatar', 'own');
       jsxc.storage.removeUserItem('otrlist');
       jsxc.storage.removeUserItem('unreadMsg');
+      jsxc.storage.removeUserItem('features');
 
       // reset user options
       jsxc.storage.removeUserElement('options', 'RTCPeerConfig');
@@ -420,6 +433,23 @@ jsxc.xmpp = {
 
       jsxc.debug('Send presence', pres.toString());
       jsxc.xmpp.conn.send(pres);
+
+      if (!jsxc.storage.getUserItem('features')) {
+         jsxc.xmpp.conn.flush();
+
+         var barJid = Strophe.getBareJidFromJid(jsxc.xmpp.conn.jid);
+
+         jsxc.xmpp.conn.disco.info(barJid, undefined, function(stanza) {
+            var features = $(stanza).find('feature').map(function() {
+               return $(this).attr('var');
+            });
+
+            jsxc.storage.setUserItem('features', features.toArray());
+            $(document).trigger('features.jsxc');
+         });
+      } else {
+         $(document).trigger('features.jsxc');
+      }
    },
 
    /**
@@ -436,6 +466,7 @@ jsxc.xmpp = {
       jsxc.storage.removeItem('hidden');
       jsxc.storage.removeUserItem('avatar', 'own');
       jsxc.storage.removeUserItem('otrlist');
+      jsxc.storage.removeUserItem('features');
 
       $(document).off('connected.jsxc', jsxc.xmpp.connected);
       $(document).off('attached.jsxc', jsxc.xmpp.attached);
@@ -511,12 +542,16 @@ jsxc.xmpp = {
     * @private
     */
    onRoster: function(iq) {
-      /*
-       * <iq from='' type='get' id=''> <query xmlns='jabber:iq:roster'> <item
-       * jid='' name='' subscription='' /> ... </query> </iq>
-       */
-
       jsxc.debug('Load roster', iq);
+
+      jsxc.storage.setUserItem('rosterLoaded', jsxc.xmpp.conn._proto.sid);
+
+      if ($(iq).find('query').length === 0) {
+         jsxc.debug('Use cached roster');
+
+         jsxc.restoreRoster();
+         return;
+      }
 
       var buddies = [];
 
@@ -547,6 +582,10 @@ jsxc.xmpp = {
       }
 
       jsxc.storage.setUserItem('buddylist', buddies);
+
+      if ($(iq).find('query').attr('ver')) {
+         jsxc.storage.setUserItem('rosterVer', $(iq).find('query').attr('ver'));
+      }
 
       // load bookmarks
       jsxc.xmpp.bookmarks.load();
@@ -626,6 +665,10 @@ jsxc.xmpp = {
             }
          }
       });
+
+      if ($(iq).find('query').attr('ver')) {
+         jsxc.storage.setUserItem('rosterVer', $(iq).find('query').attr('ver'));
+      }
 
       if (!jsxc.storage.getUserItem('buddylist') || jsxc.storage.getUserItem('buddylist').length === 0) {
          jsxc.gui.roster.empty();
@@ -750,9 +793,7 @@ jsxc.xmpp = {
          });
       }
 
-      if (data.type === 'groupchat') {
-         data.status = status;
-      } else {
+      if (data.type !== 'groupchat') {
          data.status = max;
       }
 
@@ -874,14 +915,22 @@ jsxc.xmpp = {
          if (chat.length === 0) {
             jsxc.notice.add({
                msg: $.t('Unknown_sender'),
-               description: $.t('You_received_a_message_from_an_unknown_sender') + ' (' + bid + ').'
+               description: $.t('You_received_a_message_from_an_unknown_sender_') + ' (' + bid + ').'
             }, 'gui.showUnknownSender', [bid]);
          }
 
          var msg = jsxc.removeHTML(body);
          msg = jsxc.escapeHTML(msg);
 
-         jsxc.storage.saveMessage(bid, 'in', msg, false, forwarded, stamp);
+         var messageObj = new jsxc.Message({
+            bid: bid,
+            msg: msg,
+            direction: jsxc.Message.IN,
+            encrypted: false,
+            forwarded: forwarded,
+            stamp: stamp
+         });
+         messageObj.save();
 
          return true;
       }
@@ -918,6 +967,7 @@ jsxc.xmpp = {
          var httpUploadElement = htmlBody.find('a[data-type][data-name][data-size]');
 
          if (httpUploadElement.length === 1) {
+            // deprecated syntax @since 3.2.1
             attachment = {
                type: httpUploadElement.attr('data-type'),
                name: httpUploadElement.attr('data-name'),
@@ -938,18 +988,58 @@ jsxc.xmpp = {
 
                jsxc.warn('Invalid file type, name or size.');
             }
+         } else if (htmlBody.find('>a').length === 1) {
+            var linkElement = htmlBody.find('>a');
+            var metaString = '';
+            var thumbnail;
+
+            if (linkElement.find('>img').length === 1) {
+               var imgElement = linkElement.find('>img');
+               var src = imgElement.attr('src') || '';
+               var altString = imgElement.attr('alt') || '';
+               metaString = altString.replace(/^Preview:/, '');
+
+               if (src.match(/^\s*data:[a-z]+\/[a-z0-9-+.*]+;base64,[a-z0-9=+/]+$/i)) {
+                  thumbnail = src;
+               }
+            } else {
+               metaString = linkElement.text();
+            }
+
+            var metaMatch = metaString.match(/^([a-z]+\/[a-z0-9-+.*]+)\|(\d+)\|([\s\w.,-]+)/);
+
+            if (metaMatch) {
+               attachment = {
+                  type: metaMatch[1],
+                  size: metaMatch[2],
+                  name: metaMatch[3],
+               };
+
+               if (thumbnail) {
+                  attachment.thumbnail = thumbnail;
+               }
+
+               if (linkElement.attr('href') && linkElement.attr('href').match(/^https?:\/\//)) {
+                  attachment.data = linkElement.attr('href');
+                  body = null;
+               }
+            } else {
+               jsxc.warn('Invalid file type, name or size.');
+            }
          }
       }
 
       if (jsxc.otr.objects.hasOwnProperty(bid) && body) {
          // @TODO check for file upload url after decryption
          jsxc.otr.objects[bid].receiveMsg(body, {
+            _uid: mid,
             stamp: stamp,
             forwarded: forwarded,
             attachment: attachment
          });
       } else {
          jsxc.gui.window.postMessage({
+            _uid: mid,
             bid: bid,
             direction: jsxc.Message.IN,
             msg: body,
@@ -961,6 +1051,58 @@ jsxc.xmpp = {
       }
 
       // preserve handler
+      return true;
+   },
+
+   onErrorMessage: function(message) {
+      var bid = jsxc.jidToBid($(message).attr('from'));
+
+      if (jsxc.gui.window.get(bid).length === 0 || !$(message).attr('id')) {
+         return true;
+      }
+
+      if ($(message).find('item-not-found').length > 0) {
+         jsxc.gui.window.postMessage({
+            bid: bid,
+            direction: jsxc.Message.SYS,
+            msg: $.t('message_not_send_item-not-found')
+         });
+      } else if ($(message).find('forbidden').length > 0) {
+         jsxc.gui.window.postMessage({
+            bid: bid,
+            direction: jsxc.Message.SYS,
+            msg: $.t('message_not_send_forbidden')
+         });
+      } else if ($(message).find('not-acceptable').length > 0) {
+         jsxc.gui.window.postMessage({
+            bid: bid,
+            direction: jsxc.Message.SYS,
+            msg: $.t('message_not_send_not-acceptable')
+         });
+      } else if ($(message).find('remote-server-not-found').length > 0) {
+         jsxc.gui.window.postMessage({
+            bid: bid,
+            direction: jsxc.Message.SYS,
+            msg: $.t('message_not_send_remote-server-not-found')
+         });
+      } else if ($(message).find('service-unavailable').length > 0) {
+         if ($(message).find('[xmlns="' + Strophe.NS.CHATSTATES + '"]').length === 0) {
+            jsxc.gui.window.postMessage({
+               bid: bid,
+               direction: jsxc.Message.SYS,
+               msg: $.t('message_not_send_resource-unavailable')
+            });
+         }
+      } else {
+         jsxc.gui.window.postMessage({
+            bid: bid,
+            direction: jsxc.Message.SYS,
+            msg: $.t('message_not_send')
+         });
+      }
+
+      jsxc.debug('error message for ' + bid, $(message).find('error')[0]);
+
       return true;
    },
 
@@ -1077,9 +1219,9 @@ jsxc.xmpp = {
             type: 'subscribe'
          }));
 
-         jsxc.storage.removeUserItem('add_' + bid);
+         jsxc.storage.removeUserItem('add', bid);
       } else {
-         jsxc.storage.setUserItem('add_' + bid, {
+         jsxc.storage.setUserItem('add', bid, {
             username: username,
             alias: alias || null
          });
@@ -1131,7 +1273,7 @@ jsxc.xmpp = {
     */
    sendMessage: function(message) {
       var bid = message.bid;
-      var msg = message.htmlMsg;
+      var msg = message.msg;
 
       var mucRoomNames = (jsxc.xmpp.conn.muc && jsxc.xmpp.conn.muc.roomNames) ? jsxc.xmpp.conn.muc.roomNames : [];
       var isMucBid = mucRoomNames.indexOf(bid) >= 0;
@@ -1165,18 +1307,14 @@ jsxc.xmpp = {
          id: message._uid
       });
 
-      if (message.type === jsxc.Message.HTML) {
-         xmlMsg.c("html", {
+      if (message.type === jsxc.Message.HTML && msg === message.msg && message.htmlMsg) {
+         xmlMsg.c('body').t(msg);
+
+         xmlMsg.up().c('html', {
             xmlns: Strophe.NS.XHTML_IM
-         });
-
-         // Omit StropheJS XEP-0071 limitations
-         var body = Strophe.xmlElement("body", {
+         }).c('body', {
             xmlns: Strophe.NS.XHTML
-         });
-         body.innerHTML = msg;
-
-         xmlMsg.node.appendChild(body);
+         }).h(message.htmlMsg).up();
       } else {
          xmlMsg.c('body').t(msg);
       }
@@ -1184,6 +1322,12 @@ jsxc.xmpp = {
       if (jsxc.xmpp.carbons.enabled && msg.match(/^\?OTR/)) {
          xmlMsg.up().c("private", {
             xmlns: jsxc.CONST.NS.CARBONS
+         });
+      }
+
+      if (msg.match(/^\?OTR/)) {
+         xmlMsg.up().c("no-permanent-store", {
+            xmlns: jsxc.CONST.NS.HINTS
          });
       }
 
