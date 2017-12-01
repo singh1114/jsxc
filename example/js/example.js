@@ -3,9 +3,9 @@
 $(function() {
    var settings = {
       xmpp: {
-         url: 'http://lab.gdy.club:5280/http-bind/',
-         domain: 'lab.gdy.club',
-         resource: 'example',
+         url: 'http://ambivert.me:5280/http-bind/',
+         domain: 'ambivert.me',
+         resource: 'browser',
          overwrite: true
       }
    };
@@ -19,7 +19,7 @@ $(function() {
          pass: '#password'
       },
       makejid: function() {
-	 jid = jid + '@lab.gdy.club';
+	 jid = jid + '@ambivert.me';
       },
       logoutElement: $('#logout'),
       rosterAppend: 'body',
