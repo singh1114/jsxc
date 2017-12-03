@@ -3,7 +3,7 @@
 $(function() {
    var settings = {
       xmpp: {
-         url: 'http://ambivert.me:5280/http-bind/',
+         url: 'https://ambivert.me:5280/http-bind/',
          domain: 'ambivert.me',
          resource: 'browser',
          overwrite: true
